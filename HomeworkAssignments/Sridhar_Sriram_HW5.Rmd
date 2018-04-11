@@ -1,0 +1,337 @@
+---
+title: "Homework #5"
+output: html_document
+---
+
+## Question 1: Tire Data Set
+
+a) construct a boxplot comparing the performances
+
+```{r}
+library(readr)
+library(ggplot2)
+Hwk5_Tire_Data_Set <- read_csv("~/Downloads/Hwk5 Tire Data Set.csv")
+
+entire <- data.frame(Hwk5_Tire_Data_Set)
+brands <- data.frame(Hwk5_Tire_Data_Set$Brands)
+
+apollo.mileage <- entire[which(Hwk5_Tire_Data_Set$Brands == "Apollo"),][2]$Mileage
+bridgestone.mileage <- entire[which(Hwk5_Tire_Data_Set$Brands == "Bridgestone"),][2]$Mileage
+ceat.mileage <- entire[which(Hwk5_Tire_Data_Set$Brands == "CEAT"),][2]$Mileage
+falken.mileage <- entire[which(Hwk5_Tire_Data_Set$Brands == "Falken"),][2]$Mileage
+
+
+#fivenum returns min, lower quartile, median, upper quartile and maximum in that order
+apollo.IQR <- IQR(apollo.mileage)
+bridgestone.IQR <- IQR(bridgestone.mileage)
+ceat.IQR <- IQR(ceat.mileage)
+falken.mileage <- IQR(falken.mileage)
+
+ggplot(data =Hwk5_Tire_Data_Set, aes(x = Brands, y = Mileage, fill = Brands)) +
+  geom_boxplot(position = position_dodge(0.9)) +
+  ggtitle("Performances Comparing Brand Mileage") 
+ 
+```
+
+
+b) any outliers? where?
+
+Yes there's an outlier in the data related to the CEAT tires. Unfortunately, I have tried for an incredible amount of time to write code that automatically labels the outlier (I talked to Will about it to brainstorm for solutions), but anyways, I was trying to create robust code that essentially labels outliers for any of the tire data.
+Below is the code I attempted to execute with the ggplot framework:
+
+`geom_text(aes(label=ifelse((x=="Apollo"), Mileage,"")), hjust=1.1)` 
+
+
+c) Perform one-way ANOVA analysis, report/interpret the results. State the explicit hypotheses (null and alternative) to test the findings
+
+```{r}
+
+brandmileage.aov <- aov(Hwk5_Tire_Data_Set$Mileage ~ Hwk5_Tire_Data_Set$Brands, data = Hwk5_Tire_Data_Set)
+
+summary(brandmileage.aov)
+```
+
+**Null Hypothesis**:  The mean mileage for all brands is the same
+**Alternative Hypothesis**: At least one brand is different in means from the rest.
+
+result: because there is a very low p-value (< 2.78e-08), we can assume that there is a difference in mileage between at least one tire brand and the others
+
+d) Perform Tukey's HSD test
+
+```{r}
+TukeyHSD(brandmileage.aov)
+```
+
+
+e) Plot Tukey results w/ 99% confidence level
+
+```{r}
+
+plot(TukeyHSD(brandmileage.aov, conf.level = 0.99))
+```
+
+
+## Question 2: Functions
+
+a) Create a function that calculates z-scores for a vector of length n of test scores. Test it sufficiently to demonstrate that it is correct.
+
+```{r}
+zscore_calc <- function(test_scores){
+  #error conditions
+  # 1. if there are any na values in the vector
+  if(any(is.na(test_scores))){
+    return("Please pass in a vector with test scores completely inputted")
+  }
+  # 2. if there are any values that are NOT numeric (fraction, decimal, integer)
+  else if(!any(is.numeric(test_scores))){
+    return("We'll need numbers to calculate... so pease give us numbers!")
+  }
+  
+  #initializing size of vector beforehand to save time for large inputs
+  zscore_vec <- numeric(length(test_scores))
+  zmean <- mean(test_scores)
+  zsd <- sd(test_scores)
+  
+  #making calls to function zscore that was made
+  for(i in 1:length(test_scores))
+    zscore_vec[i] <- zscore(test_scores[i], zmean, zsd)
+    return(zscore_vec)  
+  }
+
+zscore<- function(value, mu, stand_dev){
+  return((value-mu)/stand_dev)
+}
+
+zscore_calc(c(1,2,3,4,5))
+#testing to see if decimals can be taken as well
+zscore_calc(c(1,2,3,4,0.5))
+#testing to see if na values are detected / to check if length is 0
+zscore_calc(c())
+
+#testing to see if letters/character vars errors are detected
+zscore_calc(c(1,2,3,4,"hiya"))
+
+#testing for robustness
+zscore_calc(c(70, 80, 90, 99, 60, 45))
+zscore_calc(c(10, 20, 40, 20, 10))
+zscore_calc(c(51,54,65,75,85.333, 95, 94.5, 92, 72, 74, 83.7))
+
+```
+
+
+b) Create a function that determines if a letter is a vowel or not.
+
+```{r}
+vowelfun <- function(c){
+  #error conditions
+  # 1. if what's passed in is more than one letter in length
+  if(nchar(c)>1){
+    return("Please input only ONE letter")
+  }
+  # 2. if what's passed in is NOT a character
+  else if(!is.character(c)){
+    return("Please pass in a value of type CHARACTER")
+  }
+  # tolower to take care of any capitalized lettters. Could have done toUpper as well
+  c = tolower(c)
+  
+  #variant of match function for many values
+  c %in% c('a','e','i','o','u')
+}
+
+#test cases:
+
+#checking to see if capitalized values work
+vowelfun('A')
+
+#checking to see if non-character values pass
+vowelfun(1)
+
+# checking to see if values of length >1 are acceptable
+vowelfun('aa')
+
+# checking to see if consonant values fail
+vowelfun('b')
+
+#checking to see if all the "true" values evaluate to TRUE
+vowelfun('A')
+vowelfun('a')
+vowelfun('E')
+vowelfun('e')
+vowelfun('i')
+vowelfun('I')
+vowelfun('o')
+vowelfun('O')
+vowelfun('U')
+vowelfun('u')
+
+```
+
+
+## Question 3: ANOVA Tutorial
+
+### Two-way ANOVA test hypotheses:
+1. There is no difference in means of factor A
+2. There is no difference in means of factor B
+3. There is no interaction between factors A and B
+
+### Balanced Designs
+
+```{r}
+my_data <- ToothGrowth
+library("dplyr")
+
+#Showing random sample
+
+set.seed(1234)
+dplyr::sample_n(my_data, 10)
+
+str(my_data)
+```
+
+Now we're converting "dose" into a factor (currently regarded as numeric variable)
+
+```{r}
+my_data$dose <- factor(my_data$dose,
+                       levels = c(0.5, 1, 2),
+                       labels = c("D0.5", "D1", "D2"))
+head(my_data)
+```
+
+Frequency table to check if tooth length depends on supp/dose
+```{r}
+table(my_data$supp, my_data$dose)
+```
+
+**Because the resulting table is a 2x3 design-cell table, this is considered ** *balanced*
+
+```{r}
+library("ggpubr")
+
+ggboxplot(my_data, 
+          x= "dose", 
+          y = "len", 
+          color = "supp",
+          palette = c("#00AFBB", "#E7B800"))
+
+ggline(my_data, 
+       x= "dose", 
+       y = "len", 
+       color = "supp",
+       add = c("mean_se", "dotplot"),
+       palette = c("#00AFBB", "#E7B800"))
+```
+
+### Computing the Two-Way Anova Test
+```{r}
+res.aov2 <- aov(len ~supp + dose, data = my_data)
+summary(res.aov2)
+```
+
+From the above, we find that supp and dose are statistically significant, with dose being the *most* significant factor variable. This implies that a change in either `dose` or `supp` will result in a significant change in the mean tooth length.
+
+This **additive model** implies that both `supp` and `dose` are completely independent. If there are interactions between the two then... follow below:
+
+```{r}
+interaction_result <- aov(len ~supp* dose, data = my_data)
+summary(interaction_result)
+```
+
+When the interaction is NOT significant (in this case it is), it's recommended to use the additive model
+
+### Interpreting the results
+
+From the above statistics, we know that:
+* the p-value of `supp` is 0.000429, meaning that the levels of `supp` are significantly associated with the tooth lengths
+
+* p-value of `dose` is < 2e-16, meaning that levels of `dose` are significantly associated with the different tooth lengths
+
+* p-value of `supp*dose` (the interaction) is 0.02 --> this implies that the relationships between `dose` and tooth length also depend on the supp method
+
+```{r}
+require(dplyr)
+
+group_by(my_data, supp, dose) %>%
+  summarise(
+    count = n(),
+    mean = mean(len, na.rm = TRUE),
+    sd = sd(len, na.rm = TRUE)
+  )
+
+
+model.tables(interaction_result, type = "means", se = TRUE)
+```
+
+
+
+### Multiple Pariwise-Comparison between means of groups
+
+#### Using Tukey HSD for multiple pairwise-comparisons
+```{r}
+TukeyHSD(interaction_result, which = "dose")
+```
+
+#### Multiple comparisons using `multcomp` package
+
+```{r}
+library(multcomp)
+
+summary(glht(res.aov2, linfct = mcp(dose = "Tukey")))
+
+```
+
+
+#### Pariwise t-test
+
+```{r}
+pairwise.t.test(my_data$len, 
+                my_data$dose,
+                p.adjust.method = "BH")
+```
+
+### Check ANOVA assumptions: test validity
+
+#### Checking homogeneity of variance assumption
+
+```{r}
+# Test 1: Homogeneity of variances
+
+plot(interaction_result, 1)
+
+```
+
+In above call, there are a couple of outliers, which can definitely affect the normality of any given curve
+In the future, we'll remove outliers to meet test assumptions
+
+Now, using **Levene's test** to check the homogeneity of variances
+
+```{r}
+require(car)
+leveneTest(len~supp*dose, data = my_data)
+```
+
+### Checking the normality assumption
+
+```{r}
+plot(interaction_result, 2)
+```
+
+Because there aren't any extreme outliers, normality can be assumed
+
+running the **Shapiro-Wilk test**
+
+```{r}
+aov_residuals <- residuals(object = interaction_result)
+
+shapiro.test(x = aov_residuals)
+```
+
+### Computing two-way ANOVA tests for unbalanced designs
+
+```{r}
+require(car)
+my_anova <- aov(len ~ supp * dose, data = my_data)
+Anova(my_anova, type = "III")
+```
+
+

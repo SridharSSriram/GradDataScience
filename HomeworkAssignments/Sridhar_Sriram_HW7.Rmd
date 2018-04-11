@@ -1,0 +1,154 @@
+---
+title: "Homework #7"
+output: html_document
+---
+
+## Question 1: Lab 4.6.1
+
+```{r}
+library(ISLR)
+names(Smarket)
+dim(Smarket)
+summary(Smarket)
+pairs(Smarket)
+
+cor(Smarket[,-9])
+
+attach(Smarket)
+plot(Volume)
+```
+
+
+## Question 2: Lab 4.6.2
+
+```{r}
+glm.fits = glm(Direction~Lag1+Lag2+Lag3+Lag4+Lag5+Volume, data = Smarket, family = binomial)
+summary(glm.fits)
+
+summary(glm.fits)$coef
+summary(glm.fits)$coef[,4]
+
+glm.probs = predict(glm.fits, type = "response")
+glm.probs[1:10]
+contrasts(Direction)
+
+glm.pred = rep("Down",1250)
+glm.pred[glm.probs>0.5]= "Up"
+
+table(glm.pred,Direction)
+mean(glm.pred == Direction)
+
+
+train = (Year<2005)
+Smarket.2005 = Smarket[!train, ]
+dim(Smarket.2005)
+Direction.2005 = Direction[!train]
+
+glm.fits.train=glm(Direction~Lag1+Lag2+Lag3+Lag4+Lag5+Volume ,
+data=Smarket ,family=binomial ,subset=train)
+
+glm.probs.train=predict(glm.fits.train,Smarket.2005, type="response")
+
+glm.pred.train = rep("Down", 252)
+glm.pred.train[glm.probs.train>0.5] = "Up"
+table(glm.pred.train, Direction.2005)
+mean(glm.pred == Direction.2005)
+
+mean(glm.pred.train!=Direction.2005)
+
+glm.fits.refine=glm(Direction~Lag1+Lag2 ,data=Smarket ,family=binomial ,
+subset=train)
+glm.probs.refine = predict(glm.fits.refine, Smarket.2005,type = "response")
+glm.pred.refine = rep("Down",252)
+glm.pred.refine[glm.probs.refine > 0.5] = "Up"
+table(glm.pred.refine, Direction.2005)
+mean(glm.pred.refine == Direction.2005)
+
+predict(glm.fits.refine, newdata = data.frame(Lag1 = c(1.2,1.5),Lag2 = c(1.1,-0.8)), type = "response")
+```
+
+
+## Question 3: Lab 4.6.3
+```{r}
+library(MASS)
+lda.fit = lda(Direction~Lag1 + Lag2, data = Smarket,subset = train)
+lda.fit
+plot(lda.fit)
+
+lda.pred = predict(lda.fit, Smarket.2005)
+names(lda.pred)
+
+lda.class = lda.pred$class
+table(lda.class, Direction.2005)
+mean(lda.class == Direction.2005)
+sum(lda.pred$posterior[,1] >= 0.5)
+sum(lda.pred$posterior[,1] <0.5)
+
+lda.pred$posterior[1:20,1]
+lda.class[1:20]
+
+sum(lda.pred$posterior[,1]>0.9)
+```
+
+## Question 4: Lab 4.6.4
+
+```{r}
+qda.fit=qda(Direction~Lag1+Lag2 ,data=Smarket ,subset=train)
+qda.fit
+
+qda.class=predict (qda.fit ,Smarket.2005)$class
+table(qda.class,Direction.2005)
+
+mean(qda.class==Direction.2005)
+
+```
+
+## Question 5: Lab 4.6.5
+
+```{r}
+library(class)
+train.X = cbind(Lag1, Lag2)[train,]
+test.X = cbind(Lag1, Lag2)[!train,]
+train.Direction = Direction[train]
+
+set.seed(1)
+knn.pred = knn(train.X, test.X, train.Direction, k =1)
+table(knn.pred, Direction.2005)
+
+knn.pred.3 = knn(train.X, test.X, train.Direction, k =1)
+table(knn.pred.3, Direction.2005)
+
+mean(knn.pred.3 == Direction.2005)
+
+
+
+```
+
+## Question 6: Project Update
+
+
+### Project goal: Tracking the changes in Political Discourse Online
+
+Initially, my project was intended to create a multi-class classifier to measure political sentiment. However, as I'm doing a similar project for another data science class that I'm currently taking, I figured that it would be ideal for my data science education to pursue a drastically different project in order to diversify my experience.
+
+As such, my project will be a deep-dive into the evolution of political discourse on social media platforms. In other words, I want to build a dashboard that essentially measures how the vocabulary used by the Democratic Party and the Republican Party has changed since the 2008 election. Given today's hyper-polarization, I thought that it would be an interesting experiment to analyze how our public figures have either heightened in their radical views or neutralized. 
+
+#### 1. <span style = "color:red"> Why this is important </span>
+
+My motivation behind any technology-based project that I approach is to merge the worlds of policy and technology. In this specific example, I think it's imperative to truly understand the language that is used by our public figures. Likewise, due to our current polarization, there are many people both in the government and in the public that are calling for some approach to breaking such polarity. As such, conducting a retrospective analysis would be helpful in understanding exactly how the polarization came about and cultivating insights regarding how to minimize the divide.
+
+#### 2. <span style = "color: red"> Specific Research Question </span>
+
+How has the language used by the Democratic Party, the Republican Party, and their respective candidates through social media transformed since the 2008 election?
+
+#### 3. <span style = "color: red"> Datasets </span>
+
+I've written a Twitter-based web-scraper in Python that continuously pulls tweets from the timelines of prominent Democratic and Republican figures, their respective party conventions, and the actual party's timelines. The code plugs into  Twitter using the Twitter  API and the Python 'tweepy' framework. Because there is a limit as to how often an individual can access Twitter's API, I've created the script such that every 15 minutes, the code makes a call to the Twitter API to pull in more tweets which, in the end, is the data that this project is predicated on.
+
+#### 4. <span style = "color:red"> Status</span>
+
+I'm currently still getting familiar with Natural Language Processing in R in order to perform any types of data analyses on my data. I'm currently looking at the tm, NLP, openNLP, and tf-idf R packages to build some type of functional understanding of NLP in R.
+
+I plan on using some variant of cluster analysis on the corpus of text in order to look at *exactly how* the vocabulary is grouped together. Likewise, I also want to create a dashboard that offers year-by-year views, overlaid on top of a timeline plotting any significant events that occurred in the respective years, as the vocabulary from politicians is inevitably affected by such events.
+
+Furthermore, I'm also considering using a sentiment analysis package to display trivial positive/negative sentiment-related statistics to display responses to various issues using the ['SentimentAnalysis Package']("https://github.com/sfeuerriegel/SentimentAnalysis").

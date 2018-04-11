@@ -1,0 +1,436 @@
+---
+title: 'Homework #6'
+output:
+  html_document: default
+---
+
+# Question 1: Lab 3.6.2, p. 110-113
+
+```{r}
+library(ISLR)
+library(MASS)
+```
+**Goal:** predict `medv` using 13 predictors such as:
+* `rm` (avg. # rooms per house)
+* `age` (avg. age house)
+* `lstat` (% households w/ low socioeconomic status)
+
+```{r}
+# fix(Boston) <- commented out because every load triggers an imported data window
+names(Boston)
+```
+
+
+### <span style="color:blue">Building the Linear Model</span>
+```{r}
+attach(Boston)
+
+lm.fit = lm(medv~lstat)
+
+#lm.fit
+#summary(lm.fit)
+```
+
+*Note:* if we try to do the lm.fit() without attaching `Boston`, then we are referencing columns/variables that are NOT within the scope of R's object global environment
+
+* We can get around the above issue by adding the `Boston$` before the column names, but this is just cumbersome, and it's easier to just `attach` the dataset
+
+### <span style="color:blue">Exploring the Linear Model</span>
+```{r}
+names(lm.fit)
+
+coef(lm.fit)
+#lm.fit$coefficients would work just as well, but it is not "as safe" --> trying to figure out why
+
+#Now, building confidence interval:
+
+confint(lm.fit)
+confint(lm.fit,level = 0.99)
+```
+
+### <span style="color:blue">Utilizing `predict`</span>
+
+Using `predict` to construct confidence intervals:
+```{r}
+predict(lm.fit, 
+        data.frame(lstat = c(5, 10, 15)),
+        interval ="confidence")
+```
+**Interpretation:** 
+
+* the 95% confidence interval associated with `10` is `(24.474, 25.633)`
+
+
+Using `predict` to construct prediction
+```{r}
+predict(lm.fit, 
+        data.frame(lstat = c(5, 10, 15)),
+        interval ="prediction")
+```
+**Interpretation:** 
+
+* the 95% prediction interval associated with `10` is `(12.828, 37.280)`
+
+### <span style="color:blue">Plotting LSRL</span>
+
+```{r}
+library(ggplot2)
+plot(lstat, medv)
+#abline() plots a line on the previous plot
+abline(lm.fit)
+
+ggplot(Boston, aes(x = lstat, y = medv)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) 
+```
+
+### <span style="color:blue">Playing around with the different abline and plot() variations </span>
+
+```{r}
+plot(lstat,medv)
+abline(lm.fit,lwd=3)
+abline(lm.fit, lwd = 3, col = "red")
+plot(lstat, medv, col = "red")
+plot(lstat, medv, pch = 20)
+plot(lstat, medv, pch = "+")
+plot(1:20, 1:20, pch = 1:20)
+```
+
+### <span style="color:blue">Viewing `lm()` results in one window </span>
+```{r}
+par(mfrow = c(2,2))
+plot(lm.fit)
+```
+
+### <span style="color:blue">Plotting the Residuals</span>
+```{r}
+plot(predict(lm.fit), residuals(lm.fit))
+plot(predict(lm.fit), rstudent(lm.fit))
+```
+
+**rstudent:** calculates the *studentized* residuals which is:
+* quotient resulting from `residual` / `estimate of sd`
+
+
+```{r}
+plot(hatvalues(lm.fit))
+which.max(hatvalues(lm.fit))
+```
+* On basis of residual, evidence of non-linearity
+* **Leverage:** measure of how far away the independent variable values are from other observations
+
+
+# Question 2: Lab 3.6.3, p. 113 - 115
+
+## <span style="color:blue">Multiple Linear Regression</span>
+
+```{r}
+lm.mlrfit = lm(medv~lstat + age, data = Boston)
+summary(lm.mlrfit)
+```
+
+To avoid applying MLR to all 13 variables, we do the following: `~.`
+
+```{r}
+lm.mlrfit = lm(medv~., data=Boston)
+summary(lm.mlrfit)
+```
+
+In order to access different parts of the summary, we can do:
+```{r}
+#returns the R^2
+summary(lm.mlrfit)$r.sq
+
+# returns the RSE
+summary(lm.mlrfit)$sigma
+```
+
+### <span style="color:blue">Using the `vif` function: Variance Inflation Factors</span>
+```{r}
+library(car)
+vif(lm.mlrfit)
+```
+
+** Note: ** VIF helps to determine multicollinearity
+
+### <span style="color:blue"> Accessing all but one variable </span>
+```{r}
+lm.mlrfit.noage = lm(medv~.-age, data = Boston)
+summary(lm.mlrfit.noage)
+```
+
+### <span style="color:blue">Updating the linear models with variables</span>
+
+```{r}
+lm.mlrfit.withage = update(lm.mlrfit, ~.-age)
+```
+
+
+# Question 3: Lab 3.6.4, p. 115
+
+## <span style="color:blue"> Interaction Terms </span>
+
+```{r}
+summary(lm(medv~lstat*age, data = Boston))
+```
+
+**Note:** The above is shorthand for `lstat + age + lstat:age`
+
+# Question 4: Lab 3.6.5, p. 115 - 117
+
+## <span style="color:blue"> Non-linear Transformations of Predictors </span>
+
+```{r}
+lm.fit.square = lm(medv~lstat + I(lstat^2))
+summary(lm.fit.square)
+```
+
+**Note:** With a near-zero p-value, this square model seems to be a better fit for the data
+
+### <span style="color:blue"> Comparing the models with `anova()` </span>
+```{r}
+anova(lm.fit, lm.fit.square)
+```
+
+$H_{0}$ : Two models fit the data equally well
+
+$H_{a}$ : Full model is superior (squared model)
+
+**Analysis**:
+
+* With F-stat of 135 and associated p-value of nearly 0, then it shows that the model with the linear and squared predictors is superior to the model with just the linear predictor
+
+```{r}
+par(mfrow=c(2,2))
+plot(lm.fit.square)
+```
+
+**FOR NTH-TERM POLYNOMIALS, USE `poly`**
+```{r}
+lm.fit.fifth = lm(medv~poly(lstat, 5))
+summary(lm.fit.fifth)
+```
+* This shows that polynomials up to the 5th power are significant in the regression fit
+
+```{r}
+lm.fit.sixth = lm(medv~poly(lstat, 6))
+summary(lm.fit.sixth)
+```
+
+* But this analysis shows that any terms beyond the fifth power are NOT signficant predictors
+
+**USING LOG PREDICTORS**
+
+```{r}
+ summary(lm(medv~log(rm), data = Boston))
+```
+
+# Question 5: Lab 3.6.6, p. 117 - 119
+
+### <span style="color:blue"> Qualitative Predictors </span>
+
+```{r}
+#fix(Carseats) <- commented out because every load triggers an imported data window
+names(Carseats)
+```
+
+```{r}
+lm.car.fit = lm(Sales ~. + Income:Advertising + Price:Age, data = Carseats)
+summary(lm.car.fit)
+```
+
+### <span style="color:blue"> Viewing dummy variables generated by R </span>
+```{r}
+attach(Carseats)
+contrasts(ShelveLoc)
+```
+
+**Interpretation:**
+
+* `ShelveLocGood`: indicates positive output in good shelving location associated with high sales
+
+* `ShelveLocMedium`: indicates positive output in medium shelving location associated with higher sales than bad shelving location but lower sales than good shelving location
+
+
+# Question 6: Exercise 8, p. 121 - 122
+
+### <span style="color:blue"> Exercise 8 </span>
+
+importing the dataset:
+```{r}
+#fix(Auto)<-commented out because every load triggers an imported data window
+names(Auto)
+```
+
+a) <span style="color:blue">Using `lm()` to  perform simple linear regression with `mpg` as response and `horsepower` as predictor</span>
+
+```{r}
+lm.auto.fit = lm(mpg~horsepower, data = Auto)
+summary(lm.auto.fit)
+```
+
+```{r}
+plot(mpg~horsepower, data = Auto)
+```
+
+```{r}
+print("Predicted Value @ horsepower = 98")
+predict(lm.auto.fit, 
+        data.frame(horsepower =98))
+
+print("Confidence Interval:")
+predict(lm.auto.fit, 
+        data.frame(horsepower = 98),
+        interval ="confidence",
+        level =0.95)
+
+
+print("Prediction Interval: ")
+predict(lm.auto.fit, 
+        data.frame(horsepower = 98),
+        interval ="prediction", 
+        level =0.95)
+```
+
+
+
+
+* **i, ii, & iii**: There exists a strong, negative relationship between the predictor and the response
+    
+* **iv**: 
+    
+        * At a `horsepower` of 98, the predicted `mpg` is 24.67 
+        
+        * The associated 95% **confidence interval** is (23.973, 24.961)
+        
+        * The associated 95% **prediction interval** is (14.809, 34.125)
+
+b) <span style="color:blue">Plotting</span>
+
+
+```{r}
+attach(Auto)
+plot(horsepower, mpg) + 
+  title("Plot of Horsepower vs. mpg")
+abline(lm.auto.fit)
+
+##ggplot 
+ggplot(Auto, aes(x=horsepower, y = mpg)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  ggtitle("Plot of Horsepower vs. mpg")
+```
+
+
+c) <span style="color:blue">Plotting diagnostic plots of LSR</span>
+
+```{r}
+par(mfrow=c(2,2))
+plot(lm.auto.fit)
+```
+
+**Comments:**
+
+* There exists normality
+
+* There exists Heteroscedasticity
+
+* Not too much leverage
+
+* Approximately parametric (definitively not absolutely linear)
+
+# Question 7: Exercise 9, p. 121
+
+a) <span style="color:blue">Scatterplot matrix with all of the variables</span>
+
+```{r}
+attach(Auto)
+pairs(mpg~.,
+      data=Auto, 
+      main="Simple Scatterplot Matrix")
+
+#corplot
+```
+
+b) <span style="color:blue">Matrix of Correlations b/w variables using cor(). Exclude `name`</span>
+
+```{r}
+cor(y= Auto$mpg, x = Auto[,2:8])
+```
+
+
+c) <span style="color:blue">Multiple Linear Regression</span>
+
+```{r}
+lm.auto.mlr = lm(mpg~.-name, data = Auto)
+summary(lm.auto.mlr)
+coef(lm.auto.mlr)
+```
+
+* **i, ii:** There exists a  relationship between some of the predictors and the response. The following predictors have a statistically significant relationship to the response:
+    * `displacement`
+    * `weight`
+    * `year`
+    * `origin`
+    
+* **iii:** The coefficient of `year` (0.751) suggests that there exists a strong positive relationship between `year` and `mpg`. Furthermore, this also suggests that for every additional year, `mpg` on a car increases by 0.751
+
+d) <span style="color:blue">Plotting the Linear Regression Fit</span>
+
+```{r}
+par(mfrow=c(2,2))
+plot(lm.auto.mlr)
+```
+
+* Only one "Large" outlier --> the data point marked "14" indicates incredibly high leverage
+
+*Approximately homoscedatic
+
+* Approximately linear
+
+* Definitely linear
+
+e)<span style="color:blue">Checking Interactions</span>
+
+```{r}
+attach(Auto)
+lm(mpg~cylinders:displacement)
+lm(mpg~cylinders:horsepower)
+lm(mpg~cylinders:weight)
+lm(mpg~cylinders:acceleration)
+lm(mpg~cylinders:year)
+lm(mpg~cylinders:origin)
+lm(mpg~displacement:horsepower)
+lm(mpg~displacement:weight)
+lm(mpg~displacement:acceleration)
+lm(mpg~displacement:year)
+lm(mpg~displacement:origin)
+lm(mpg~horsepower:weight)
+lm(mpg~horsepower:acceleration)
+lm(mpg~horsepower:year)
+lm(mpg~horsepower:origin)
+lm(mpg~weight:acceleration)
+lm(mpg~weight:year)
+lm(mpg~weight:origin)
+lm(mpg~acceleration:year)
+lm(mpg~acceleration:origin)
+```
+
+
+f)<span style="color:blue">Varying Transformations</span>
+
+```{r}
+lm.auto.sq = lm(mpg+Auto[,2:8]+ I(Auto[,2:8])^2, data = Auto)
+summary(lm.auto.sq)
+
+lm.auto.3 = lm(mpg+Auto[,2:8]+I(Auto[,2:8])^3, data = Auto)
+summary(lm.auto.3)
+
+lm.auto.4= lm(mpg+Auto[,2:8]+I(Auto[,2:8])^4, data = Auto)
+summary(lm.auto.4)
+
+lm.auto.log= lm(mpg+Auto[,2:8]+log(Auto[,2:8]), data = Auto)
+summary(lm.auto.log)
+```
+
+**I had difficulty doing computing squares/logs with MLR, so I'll follow up in class with questions**
