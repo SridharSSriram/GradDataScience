@@ -1,6 +1,7 @@
 ---
 title: "Homework #7"
-output: html_document
+output: 
+  rmarkdown::github_document
 ---
 
 ## Question 1: Lab 4.6.1
