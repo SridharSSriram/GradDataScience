@@ -1,0 +1,229 @@
+---
+title: "Sridhar Sriram HW#8"
+output: html_document
+---
+
+## Lab 8.3.1: Fitting Classification Trees
+
+#### <span style="color:blue">Working through fitting classification trees</span>
+
+```{r}
+#install.packages("tree")
+library(tree)
+library(ISLR)
+attach(Carseats)
+
+High = ifelse(Sales <= 8, "No", "Yes")
+
+Carseats = data.frame(Carseats, High)
+```
+
+#### <span style="color:blue">Now, using tree() to fit classification tree for predicting "High" status </span>
+```{r}
+tree.carseats = tree(High~.-Sales, Carseats)
+summary(tree.carseats)
+```
+
+```{r}
+plot(tree.carseats)
+text(tree.carseats, pretty = 0)
+```
+
+#### <span style="color:blue">Creating the test/train sets</span>
+
+```{r}
+set.seed(2)
+train = sample(1:nrow(Carseats),200)
+
+Carseats.test = Carseats[-train,]
+
+High.test= High[-train]
+
+tree.carseats = tree(High~.-Sales, Carseats, subset = train)
+
+tree.pred = predict(tree.carseats, Carseats.test, type = "class")
+
+table(tree.pred,High.test)
+
+cat("Success rate of: ",(86+57)/(86+57+27+30)*100)
+```
+
+**Pruning Classification Trees**: The act of removing sectinos of the tree with little classification power
+
+#### <span style="color:blue">We'll first cross-validate to check for the optimal sizes </span>
+
+* Because at size 9, there is an error-rate of only 50 (the minimum), we should reduce to a 9-node tree
+
+below: `dev` corresponds to the cross-validation error rate
+
+```{r}
+set.seed(3)
+
+cv.carseats = cv.tree(tree.carseats, FUN = prune.misclass)
+
+names(cv.carseats)
+
+cv.carseats
+
+par(mfrow = c(1,2))
+
+plot(cv.carseats$size, cv.carseats$dev, type="b")
+plot(cv.carseats$k, cv.carseats$dev, type="b")
+
+```
+
+#### <span style="color:blue">Now, we want to obtain the reduced tree using pruning</span>
+
+```{r}
+prune.carseats = prune.misclass(tree.carseats,best = 9)
+
+plot(prune.carseats)
+text(prune.carseats,pretty = 0)
+```
+
+#### <span style="color:blue">Checking to see how good the pruning method works on test data </span>
+
+```{r}
+tree.pred=predict(prune.carseats,Carseats.test, type = "class")
+
+table(tree.pred, High.test)
+
+cat("Success rate of: ",(94+60)/(96+60+22+24))
+
+```
+
+
+**As is indicated, our accuracy with prediction/classification has gone up**
+
+#### <span style="color:blue">Increasing the size of the tree reduces the accuracy:</span>
+
+```{r}
+prune.carseats = prune.misclass(tree.carseats,best = 15)
+
+plot(prune.carseats)
+text(prune.carseats,pretty = 0)
+tree.pred=predict(prune.carseats,Carseats.test, type = "class")
+
+table(tree.pred, High.test)
+
+cat("Success rate of: ",(86+62)/(200))
+```
+
+
+
+## Lab 8.3.2: Fitting Regression Trees
+
+```{r}
+library(MASS)
+set.seed(1)
+
+train = sample(1:nrow(Boston),nrow(Boston)/2)
+tree.boston = tree(medv~.,Boston, subset=train)
+summary(tree.boston)
+```
+
+#### <span style="color:purple"> Plotting the generated data </span>
+
+```{r}
+plot(tree.boston)
+text(tree.boston, pretty = 0)
+```
+
+#### <span style="color:purple">Cross-validation</span>
+
+```{r}
+cv.boston = cv.tree(tree.boston)
+cv.boston
+plot(cv.boston$size, cv.boston$dev, type = 'b')
+```
+
+#### <span style="color:purple">Pruning</span>
+
+I'm not entirely sure why the lab in instructs us to prune the tree into a 5-node tree when it's evident that a 7-node tree yields the least amount of errors.
+
+```{r}
+prune.boston = prune.tree(tree.boston,best=5)
+plot(prune.boston)
+text(prune.boston,pretty = 0)
+```
+
+#### <span style="color:purple">Testing</span>
+
+```{r}
+yhat = predict(tree.boston, newdata = Boston[-train,])
+boston.test = Boston[-train, "medv"]
+plot(yhat, boston.test)
+abline(0,1)
+mean((yhat-boston.test)^2)
+```
+
+**Interpretation:** 
+
+* This model makes predictions that are within $5005 of the true median home value
+## Lab 8.3.3: Bagging and Random Forests
+
+
+
+
+
+## Lab 8.3.3: Bagging and Random Forests 
+
+
+## Lab 8.3.4: Boosting
+
+#### <span style="color:green">Boosting with `gbm()`</span>
+
+* We are using `distribution = gaussian` because right now, we are handling regression problems
+
+  * If this were a binary classification problem, we would use `"bernoulli"` instead
+
+```{r}
+#install.packages("gbm")
+library(gbm)
+set.seed(1)
+boost.boston = gbm(medv~.,
+                   data = Boston[train,],
+                   distribution = "gaussian",
+                   n.trees = 5000,
+                   interaction.depth = 4)
+
+summary(boost.boston)
+```
+
+**Interpretation:**
+
+* `lstat` and `rm` are the most important variables
+
+#### <span style="color:green">Plotting the partial dependence plots</span>
+```{r}
+par(mfrow=c(1,2))
+plot(boost.boston, i = "rm")
+plot(boost.boston, i = "lstat")
+```
+
+#### <span style="color:green">Boosted model as basis for predicting median prices on the test set</span>
+
+```{r}
+yhat.boost = predict(boost.boston,newdata=Boston[-train,],
+                     n.trees=5000)
+
+mean((yhat.boost-boston.test)^2)
+```
+
+**We can modify the lambda value in building the boosted model, by modifying the "shrinkage" value (0.001 is the default value)** 
+
+```{r}
+boost.boston = gbm(medv~.,
+                   data=Boston[train,],
+                   distribution = "gaussian",
+                   n.trees=5000,
+                   interaction.depth= 4,
+                   shrinkage = 0.005,
+                   verbose = F)
+yhat.boost=predict(boost.boston,
+                   newdata = Boston[-train,],
+                   n.trees = 5000)
+
+mean((yhat.boost-boston.test)^2)
+```
+
