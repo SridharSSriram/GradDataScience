@@ -1,0 +1,54 @@
+---
+title: "Sridhar_Sriram_HW10"
+output: html_document
+---
+
+## Lab 10.4, Lab 1 (PCA)
+
+### Exploring the `USArrests Dataset`
+```{r}
+states = row.names(USArrests)
+
+names(USArrests)
+```
+
+#### Using the `apply` function:
+
+* Allows us to apply any given function onto a specified dataset
+
+* Syntax is `apply(<dataset>, <margin:1,2>,<function>)`
+
+  * **margin**:
+  
+    * **1**:  applying to rows
+    
+    * **2**: applying to columns
+    
+```{r}
+apply(USArrests,2,mean)
+
+apply(USArrests,2,var)
+```
+
+### Standardizing dataset to avoid overwhelming influence by the Assault data points (due to very high variance and very high mean)
+
+`prcomp` --> PCA function in R
+
+* Centers the variables to have a mean of 0
+
+
+```{r}
+pr.out = prcomp(USArrests, scale = TRUE)
+
+names(pr.out)
+
+pr.out
+```
+
+
+
+
+## Lab 10.5.1, Lab 2 (K-means Clustering)
+
+## Lab 10.5.2, Lab (hierarchial clustering)
+

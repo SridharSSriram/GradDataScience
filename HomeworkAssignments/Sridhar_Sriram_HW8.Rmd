@@ -1,7 +1,7 @@
 ---
 title: "Sridhar Sriram HW#8"
 output:
-
+  pdf_document: default
   rmarkdown::github_document
 ---
 

@@ -1,0 +1,233 @@
+---
+title: "Sridhar Sriram Homework 9"
+output:
+  rmarkdown::github_document
+---
+
+## Lab 5.3.1: The Validation Set Approach
+
+#### <span style="color:blue">Splitting the Dataset</span>
+
+```{r}
+library(ISLR)
+set.seed(1)
+# of the 392 observations, randomly select 196
+train = sample(392, 196)
+```
+
+#### <span style="color:blue">Fitting the linear regression w/ only the training set, then expanding for quadratic and cubed regression</span>
+```{r}
+lm.fit = lm(mpg~horsepower, data = Auto, subset = train)
+
+attach(Auto)
+mean((mpg-predict(lm.fit,Auto))[-train]^2)
+
+lm.fit.squared = lm(mpg~poly(horsepower,2), data = Auto, subset = train)
+lm.fit.cubed = lm(mpg~poly(horsepower,3), data = Auto, subset = train)
+
+mean((mpg-predict(lm.fit.squared,Auto))[-train]^2)
+mean((mpg-predict(lm.fit.cubed,Auto))[-train]^2)
+```
+
+#### <span style="color:blue">Choosing a different training set</span>
+
+```{r}
+set.seed(2)
+train.2 = sample(392, 196)
+
+lm.2.fit = lm(mpg~horsepower, data = Auto, subset = train.2)
+mean((mpg-predict(lm.2.fit,Auto))[-train.2]^2)
+
+lm.2.fit.squared = lm(mpg~poly(horsepower,2), data = Auto, subset = train.2)
+lm.2.fit.cubed = lm(mpg~poly(horsepower,3), data = Auto, subset = train.2)
+
+mean((mpg-predict(lm.2.fit.squared,Auto))[-train.2]^2)
+mean((mpg-predict(lm.2.fit.cubed,Auto))[-train.2]^2)
+```
+
+* From this outcome we can tell that using a quadratic model is definitely better than linear regression model, although cubic is not obviously any more advantageous
+
+
+## Lab 5.3.2 192-193: LOOCV
+
+#### <span style="color:purple">Showing the `glm()` without a specification of family type and `lm()` are the same</span>
+
+```{r}
+glm.fit = glm(mpg~horsepower, data = Auto)
+
+coef(glm.fit)
+
+lm.fit.glmcopy = lm(mpg~horsepower, data = Auto)
+coef(lm.fit.glmcopy)
+```
+
+#### <span style="color:purple">Opting to use `glm()` because of compatability with `cv`</span>
+
+The values found within the `delta` vector of our `cv.err` variable contain the results from our cross-validation
+```{r}
+library(boot)
+glm.fit = glm(mpg~horsepower, data = Auto)
+cv.err = cv.glm(Auto, glm.fit)
+cv.err$delta
+```
+
+#### <span style="color:purple">Populating a vector with the associated regression </span>
+
+```{r}
+
+cv.error = rep(0,5)
+for ( i in 1:5){
+  glm.fit = glm(mpg~poly(horsepower,i),data = Auto)
+  cv.error[i] = cv.glm(Auto, glm.fit)$delta[1]
+}
+
+cv.error
+```
+
+
+## Chapter 5, exercise 5 A & B (198 - 199)
+
+```{r}
+library(ISLR)
+attach(Default)
+set.seed(1234)
+
+glm.fit.regression <- glm(default~income*balance, family = "binomial")
+
+coef(glm.fit.regression)
+summary(glm.fit.regression)$coef
+```
+
+```{r}
+attach(Default)
+set.seed(1354)
+
+train = sample(nrow(Default),nrow(Default)/2)
+
+glm.fit.train <- glm(default~income*balance, family = "binomial", subset=train)
+
+summary(glm.fit.train)$coef
+
+glm.probability = predict(glm.fit.train, type = "response")
+
+glm.prediction = rep("No",length(train))
+
+glm.prediction[glm.probability > 0.5] = "Yes"
+```
+
+
+** Test error rate on the training set: **
+
+```{r}
+
+classification.table.train <- table(glm.prediction,default[train])
+classification.table.train
+
+cat("Error rate of: ",1 - (classification.table.train[1] + classification.table.train[4])/5000)
+```
+
+
+** Test error rate on the training set: **
+
+```{r}
+
+classification.table.val<- table(glm.prediction,default[-train])
+classification.table.val
+
+cat("Error rate of: ",1 - (classification.table.val[1] + classification.table.val[4])/5000)
+
+```
+
+## Chapter 8, exercise 8 ( 333 - 334)
+
+a) train, test sets
+
+```{r}
+library(ISLR)
+attach(Carseats)
+set.seed(156)
+
+train.carseats = sample(nrow(Carseats),nrow(Carseats)/2)
+carseats.test=Carseats[-train.carseats ,"Sales"]
+```
+
+b) Regression Tree
+
+```{r}
+library(tree)
+tree.carseats = tree(Sales~.,Carseats, subset=train.carseats)
+
+summary(tree.carseats)
+
+plot(tree.carseats)
+text(tree.carseats, pretty = 0)
+
+yhat=predict (tree.carseats ,newdata=Carseats[-train.carseats ,])
+cat("Obtained MSE of: ",mean((yhat -carseats.test)^2))
+```
+
+c) Cross-validation
+
+```{r}
+cv.carseats = cv.tree(tree.carseats)
+cv.carseats
+plot(cv.carseats$size, cv.carseats$dev, type = 'b')
+
+prune.carseats = prune.tree(tree.carseats,best=5)
+plot(prune.carseats)
+text(prune.carseats,pretty = 0)
+
+
+```
+
+No, pruning does not improve the test MSE
+
+
+d) Bagging
+
+```{r}
+library(randomForest)
+set.seed(1)
+bag.car = randomForest(Sales~.,data = Carseats, subset = train.carseats, importance = TRUE)
+
+
+yhat.bag = predict(bag.car, newdata=Carseats[-train.carseats,])
+plot(yhat.bag, carseats.test)
+abline(0,1)
+cat("Obtain test MSE of: ",mean((yhat.bag - carseats.test)^2))
+
+varImpPlot(bag.car)
+```
+
+e) Random Forest
+
+
+```{r}
+library(randomForest)
+set.seed(1)
+
+minMSE = 10000
+min.m = 0
+for( i in 1:11){
+  car.rf = randomForest(Sales~.,data = Carseats, subset = train.carseats, mtry = i,importance = TRUE)
+  yhat.rf = predict(car.rf, newdata=Carseats[-train.carseats,])
+  currentMSE = mean((yhat.rf - carseats.test)^2)
+  print(currentMSE)
+  if(currentMSE<minMSE){
+    minMSE = currentMSE
+    min.m = i
+  }
+}
+
+min.m
+
+car.rf = randomForest(Sales~.,data = Carseats, subset = train.carseats, mtry = i,importance = TRUE)
+
+yhat.rf = predict(car.rf, newdata=Carseats[-train.carseats,])
+
+cat("Obtain test MSE of: ",mean((yhat.rf - carseats.test)^2))
+
+varImpPlot(bag.car)
+
+```
+
